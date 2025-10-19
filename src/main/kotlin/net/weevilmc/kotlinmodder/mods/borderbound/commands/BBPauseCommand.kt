@@ -11,7 +11,7 @@ import net.weevilmc.kotlinmodder.mods.borderbound.GameState
 object BBPauseCommand {
     fun register(dispatcher: CommandDispatcher<ServerCommandSource>) {
         dispatcher.register(
-            CommandManager.literal("bbpause")
+            CommandManager.literal("bbtogglepause")
                 .requires { source -> source.hasPermissionLevel(2) } // Requires op
                 .executes { context ->
                     execute(context)

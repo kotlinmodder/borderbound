@@ -19,6 +19,9 @@ object GameState {
     var pausedTargetSize = 0.0
     var remainingShrinkTimeMillis = 0L
 
+    // Elimination tracking
+    var eliminatedPlayers = mutableSetOf<UUID>()
+
     fun reset() {
         isGameActive = false
         isPaused = false
@@ -31,6 +34,7 @@ object GameState {
         pausedBorderSize = 0.0
         pausedTargetSize = 0.0
         remainingShrinkTimeMillis = 0L
+        eliminatedPlayers.clear()
     }
 
     fun getCurrentBorderSize(server: net.minecraft.server.MinecraftServer): Double {

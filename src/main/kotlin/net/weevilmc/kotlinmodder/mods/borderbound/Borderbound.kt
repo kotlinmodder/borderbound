@@ -2,10 +2,13 @@ package net.weevilmc.kotlinmodder.mods.borderbound
 
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.server.command.CommandManager
+import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
 import net.minecraft.world.World
 import net.weevilmc.kotlinmodder.mods.borderbound.commands.BBStartCommand
@@ -40,8 +43,41 @@ class Borderbound : ModInitializer {
             }
         }
 
+        // Register player death event for elimination mechanic
+        ServerLivingEntityEvents.AFTER_DEATH.register { entity, damageSource ->
+            if (GameState.isGameActive && entity is ServerPlayerEntity) {
+                // Check if border has reached finish size
+                val world = entity.getEntityWorld() as? net.minecraft.server.world.ServerWorld ?: return@register
+                val server = world.server
+                if (GameState.hasBorderReachedFinishSize(server)) {
+                    // Check if killed by another player
+                    val attacker = damageSource.attacker
+                    if (attacker is ServerPlayerEntity && attacker.uuid != entity.uuid) {
+                        // Mark player as eliminated
+                        GameState.eliminatedPlayers.add(entity.uuid)
+
+                        // Notify all players
+                        server.playerManager.broadcast(
+                            Text.literal("${entity.name.string} has been eliminated by ${attacker.name.string}!"),
+                            false
+                        )
+                    }
+                }
+            }
+        }
+
         // Register player respawn event
         ServerPlayerEvents.AFTER_RESPAWN.register { oldPlayer, newPlayer, alive ->
+            // Check if player is eliminated
+            if (GameState.isGameActive && GameState.eliminatedPlayers.contains(newPlayer.uuid)) {
+                newPlayer.changeGameMode(GameMode.SPECTATOR)
+                newPlayer.sendMessage(
+                    Text.literal("You have been eliminated! You are now in spectator mode."),
+                    false
+                )
+                return@register
+            }
+
             if (GameState.isGameActive && !alive) {
                 // Player died - respawn them 100 blocks inside the border
                 val world = newPlayer.getEntityWorld() as? net.minecraft.server.world.ServerWorld ?: return@register
