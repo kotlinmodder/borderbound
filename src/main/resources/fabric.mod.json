@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "borderbound",
+  "version": "${version}",
+  "name": "borderbound",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/borderbound/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "net.weevilmc.kotlinmodder.mods.borderbound.client.BorderboundDataGenerator"
+    ],
+    "client": [
+      "net.weevilmc.kotlinmodder.mods.borderbound.client.BorderboundClient"
+    ],
+    "main": [
+      "net.weevilmc.kotlinmodder.mods.borderbound.Borderbound"
+    ]
+  },
+  "mixins": [
+    "borderbound.mixins.json",
+    {
+      "config": "borderbound.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-language-kotlin": ">=${kotlin_loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}

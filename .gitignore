@@ -1,0 +1,37 @@
+# Gradle
+.gradle/
+build/
+out/
+bin/
+
+# Fabric
+run/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Compiled class files
+*.class
