@@ -27,6 +27,9 @@ Thumbs.db
 # Log files
 *.log
 
+# ai for hire
+.claude/
+
 # Temporary files
 *.tmp
 *.temp
