@@ -2,30 +2,20 @@
   "schemaVersion": 1,
   "id": "borderbound",
   "version": "${version}",
-  "name": "borderbound",
-  "description": "",
-  "authors": [],
+  "name": "Borderbound",
+  "description": "Server-side manhunt-style PvP mini-game with shrinking world border",
+  "authors": ["kotlinmodder"],
   "contact": {},
   "license": "MIT",
   "icon": "assets/borderbound/icon.png",
-  "environment": "*",
+  "environment": "server",
   "entrypoints": {
-    "fabric-datagen": [
-      "net.weevilmc.kotlinmodder.mods.borderbound.client.BorderboundDataGenerator"
-    ],
-    "client": [
-      "net.weevilmc.kotlinmodder.mods.borderbound.client.BorderboundClient"
-    ],
     "main": [
       "net.weevilmc.kotlinmodder.mods.borderbound.Borderbound"
     ]
   },
   "mixins": [
-    "borderbound.mixins.json",
-    {
-      "config": "borderbound.client.mixins.json",
-      "environment": "client"
-    }
+    "borderbound.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${loader_version}",

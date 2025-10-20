@@ -3,9 +3,13 @@ package net.weevilmc.kotlinmodder.mods.borderbound
 import net.minecraft.block.Blocks
 import net.minecraft.entity.effect.StatusEffectInstance
 import net.minecraft.entity.effect.StatusEffects
+import net.minecraft.network.packet.s2c.play.SubtitleS2CPacket
+import net.minecraft.network.packet.s2c.play.TitleFadeS2CPacket
+import net.minecraft.network.packet.s2c.play.TitleS2CPacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerPlayerEntity
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import net.minecraft.util.math.BlockPos
 import net.minecraft.world.GameRules
 import net.minecraft.world.World
@@ -14,6 +18,35 @@ import kotlin.math.sin
 import kotlin.math.PI
 
 object GameManager {
+
+    /**
+     * Sends a golden title to all players on the server
+     * @param server The Minecraft server
+     * @param title The main title text (large, center screen)
+     * @param subtitle Optional subtitle text (smaller, below title)
+     * @param fadeIn Fade in time in ticks (default: 10)
+     * @param stay Stay time in ticks (default: 70)
+     * @param fadeOut Fade out time in ticks (default: 20)
+     */
+    fun sendTitleToAll(
+        server: MinecraftServer,
+        title: String,
+        subtitle: String? = null,
+        fadeIn: Int = 10,
+        stay: Int = 70,
+        fadeOut: Int = 20
+    ) {
+        val titleText = Text.literal(title).formatted(Formatting.GOLD, Formatting.BOLD)
+        val subtitleText = subtitle?.let { Text.literal(it).formatted(Formatting.YELLOW) }
+
+        server.playerManager.playerList.forEach { player ->
+            player.networkHandler.sendPacket(TitleFadeS2CPacket(fadeIn, stay, fadeOut))
+            player.networkHandler.sendPacket(TitleS2CPacket(titleText))
+            subtitleText?.let {
+                player.networkHandler.sendPacket(SubtitleS2CPacket(it))
+            }
+        }
+    }
 
     fun startGame(
         server: MinecraftServer,
@@ -55,18 +88,19 @@ object GameManager {
         // Teleport players and give slow falling
         teleportPlayers(server, players, worldSpawn, startSize)
 
-        // Broadcast game start
-        server.playerManager.broadcast(
-            Text.literal("Borderbound game started! Border shrinking from $startSize to $finishSize over $time seconds."),
-            false
-        )
-
-        if (!enablePvp) {
-            server.playerManager.broadcast(
-                Text.literal("PvP will be enabled when the border reaches the final size."),
-                false
-            )
+        // Play goat horn ponder sound for game start
+        server.playerManager.playerList.forEach { p ->
+            p.playSound(net.minecraft.sound.SoundEvents.GOAT_HORN_SOUNDS.get(0).value(), 2.0f, 1.0f)
         }
+
+        // Show game start title
+        val subtitle = if (!enablePvp) {
+            "Border: $startSize → $finishSize blocks | PvP enabled at final size"
+        } else {
+            "Border: $startSize → $finishSize blocks over $time seconds"
+        }
+        sendTitleToAll(server, "BORDERBOUND", subtitle, fadeIn = 10, stay = 100, fadeOut = 20)
+
     }
 
     private fun setupWorldBorder(
@@ -228,11 +262,16 @@ object GameManager {
         // Mark as paused
         GameState.isPaused = true
 
-        // Broadcast to all players
-        server.playerManager.broadcast(
-            Text.literal("Game paused! Border has stopped shrinking. Remaining time: ${GameState.remainingShrinkTimeMillis / 1000}s"),
-            false
+        // Show pause title
+        sendTitleToAll(
+            server,
+            "GAME PAUSED",
+            "Remaining time: ${GameState.remainingShrinkTimeMillis / 1000}s",
+            fadeIn = 5,
+            stay = 50,
+            fadeOut = 10
         )
+
     }
 
     fun resumeGame(server: MinecraftServer) {
@@ -259,10 +298,15 @@ object GameManager {
         // Mark as unpaused
         GameState.isPaused = false
 
-        // Broadcast to all players
-        server.playerManager.broadcast(
-            Text.literal("Game resumed! Border is shrinking again for ${GameState.remainingShrinkTimeMillis / 1000} more seconds."),
-            false
+        // Show resume title
+        sendTitleToAll(
+            server,
+            "GAME RESUMED",
+            "Border shrinking for ${GameState.remainingShrinkTimeMillis / 1000}s",
+            fadeIn = 5,
+            stay = 50,
+            fadeOut = 10
         )
+
     }
 }

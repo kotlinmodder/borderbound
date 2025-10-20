@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew:*)",
+      "WebFetch(domain:fabricmc.net)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nInitial commit: Borderbound v1.0\n\nA Minecraft 1.21.10 Fabric mod for manhunt-style PvP gameplay.\n\nFeatures:\n- /bbstart command with configurable border sizes and shrink time\n- /bbpause command for game pause/resume\n- Automatic player positioning around border edge\n- Slow falling start effect\n- Smart respawning at player''s designated edge\n- HUD display with color-coded border distance warnings\n- PvP control (disabled until border reaches final size)\n- Compatible with other Fabric mods\n\n🤖 Generated with Claude Code (https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git config --local --list)",
+      "Bash(git config --global user.name)",
+      "Bash(git config --global user.email)",
+      "Bash(git config --local user.name \"kotlinmodder\")",
+      "Bash(git config --local user.email \"kotlinmodder@gmail.com\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

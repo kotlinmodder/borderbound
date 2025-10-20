@@ -4,10 +4,20 @@ import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
+import net.minecraft.entity.EntityType
+import net.minecraft.entity.projectile.FireworkRocketEntity
+import net.minecraft.item.ItemStack
+import net.minecraft.item.Items
+import net.minecraft.nbt.NbtCompound
+import net.minecraft.nbt.NbtList
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.network.ServerPlayerEntity
+import net.minecraft.sound.SoundCategory
+import net.minecraft.sound.SoundEvents
 import net.minecraft.text.Text
+import net.minecraft.util.Formatting
 import net.minecraft.world.GameMode
 import net.minecraft.world.GameRules
 import net.minecraft.world.World
@@ -23,7 +33,10 @@ class Borderbound : ModInitializer {
             BBPauseCommand.register(dispatcher)
         }
 
-        // Register tick event to check border size and enable PvP
+        // Note: Persistence could be added here in the future
+        // For now, game state is lost on server restart
+
+        // Register tick event to check border size, enable PvP, and show action bar
         ServerTickEvents.END_SERVER_TICK.register { server ->
             if (GameState.isGameActive && !GameState.enablePvp) {
                 if (GameState.hasBorderReachedFinishSize(server)) {
@@ -34,11 +47,43 @@ class Borderbound : ModInitializer {
                     val overworld = server.getWorld(World.OVERWORLD)
                     overworld?.gameRules?.get(GameRules.PVP)?.set(true, server)
 
-                    // Notify players
-                    server.playerManager.broadcast(
-                        Text.literal("The border has reached its final size! PvP is now enabled!"),
-                        false
+                    // Play ender dragon growl sound for PvP enabled
+                    server.playerManager.playerList.forEach { p ->
+                        p.playSound(SoundEvents.ENTITY_ENDER_DRAGON_GROWL, 2.0f, 1.0f)
+                    }
+
+                    // Show PvP enabled title
+                    GameManager.sendTitleToAll(
+                        server,
+                        "PvP ENABLED",
+                        "The border has reached its final size!",
+                        fadeIn = 10,
+                        stay = 60,
+                        fadeOut = 20
                     )
+
+                }
+            }
+
+            // Show action bar border distance to all players
+            if (GameState.isGameActive) {
+                server.playerManager.playerList.forEach { player ->
+                    if (player.getEntityWorld().registryKey == World.OVERWORLD) {
+                        val distance = GameManager.getDistanceToBorder(player)
+                        if (distance >= 0) {
+                            val color = when {
+                                distance < 50 -> Formatting.RED
+                                distance < 100 -> Formatting.GOLD
+                                distance < 160 -> Formatting.YELLOW
+                                else -> Formatting.GREEN
+                            }
+                            val distanceText = String.format("%.1f", distance)
+                            player.sendMessage(
+                                Text.literal("Border: ${distanceText}m").formatted(color),
+                                true // Action bar
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -56,11 +101,57 @@ class Borderbound : ModInitializer {
                         // Mark player as eliminated
                         GameState.eliminatedPlayers.add(entity.uuid)
 
-                        // Notify all players
+                        // Play trident thunder sound for elimination
+                        server.playerManager.playerList.forEach { p ->
+                            p.playSound(SoundEvents.ITEM_TRIDENT_THUNDER.value(), 1.5f, 1.0f)
+                        }
+
+                        // Announce elimination
                         server.playerManager.broadcast(
-                            Text.literal("${entity.name.string} has been eliminated by ${attacker.name.string}!"),
+                            Text.literal("${entity.name.string} has been eliminated by ${attacker.name.string}!")
+                                .formatted(Formatting.RED, Formatting.BOLD),
                             false
                         )
+
+                        // Check if there's a winner (only one non-eliminated player left)
+                        val alivePlayers = server.playerManager.playerList.filter {
+                            !GameState.eliminatedPlayers.contains(it.uuid)
+                        }
+                        if (alivePlayers.size == 1) {
+                            val winner = alivePlayers[0]
+
+                            // Announce winner
+                            GameManager.sendTitleToAll(
+                                server,
+                                "${winner.name.string} WINS!",
+                                "Champion of Borderbound!",
+                                fadeIn = 10,
+                                stay = 100,
+                                fadeOut = 20
+                            )
+
+                            // Spawn 6 fireworks at winner's location
+                            val overworld = server.getWorld(World.OVERWORLD)
+                            if (overworld != null) {
+                                for (i in 0 until 6) {
+                                    val firework = FireworkRocketEntity(
+                                        overworld,
+                                        winner.x + (Math.random() - 0.5) * 3,
+                                        winner.y,
+                                        winner.z + (Math.random() - 0.5) * 3,
+                                        createFireworkStack()
+                                    )
+                                    overworld.spawnEntity(firework)
+                                }
+                            }
+
+                            // End the game
+                            GameState.isGameActive = false
+                        }
+
+                        // Save state
+                        val state = BorderboundState.getServerState(server)
+                        GameState.saveToState(state)
                     }
                 }
             }
@@ -159,5 +250,34 @@ class Borderbound : ModInitializer {
                 }
             }
         }
+    }
+
+    private fun createFireworkStack(): ItemStack {
+        val firework = ItemStack(Items.FIREWORK_ROCKET)
+
+        val colors = it.unimi.dsi.fastutil.ints.IntArrayList()
+        colors.add(0xFF0000)
+        colors.add(0xFFFF00)
+        colors.add(0x00FF00)
+
+        val fadeColors = it.unimi.dsi.fastutil.ints.IntArrayList()
+        fadeColors.add(0xFFFFFF)
+
+        val explosions = listOf(
+            net.minecraft.component.type.FireworkExplosionComponent(
+                net.minecraft.component.type.FireworkExplosionComponent.Type.BURST,
+                colors,
+                fadeColors,
+                true,
+                true
+            )
+        )
+
+        firework.set(
+            net.minecraft.component.DataComponentTypes.FIREWORKS,
+            net.minecraft.component.type.FireworksComponent(2, explosions)
+        )
+
+        return firework
     }
 }
